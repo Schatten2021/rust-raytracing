@@ -1,6 +1,3 @@
-use crate::math::vector::Vector3;
-
-
 pub(super) trait Scalar {
     fn to_scalar(self) -> f64;
 }

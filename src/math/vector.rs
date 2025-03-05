@@ -5,7 +5,6 @@ mod sub;
 mod iter_ops;
 
 use std::fmt::Display;
-use std::iter::{Product, Sum};
 use std::ops::Neg;
 
 /// A 3-dimensional Vector

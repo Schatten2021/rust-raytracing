@@ -1,6 +1,6 @@
 use crate::math::general::Scalar;
 use crate::math::vector::Vector3;
-use std::ops::{Mul, MulAssign, Sub, SubAssign};
+use std::ops::{Sub, SubAssign};
 
 impl<T: Scalar> Sub<T> for &Vector3 {
     type Output = Vector3;

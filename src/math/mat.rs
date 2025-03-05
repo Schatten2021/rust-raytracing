@@ -5,8 +5,6 @@ mod div;
 mod specific_math;
 
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::{Div, Mul};
-use crate::math::general::Scalar;
 use crate::math::vector::Vector3;
 
 #[derive(Clone, Copy)]

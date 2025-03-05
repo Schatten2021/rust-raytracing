@@ -33,8 +33,8 @@ impl Triangle {
     }
 
     pub fn contains(&self, point: Vector3) -> bool {
-        let (pos, mut r, mut s) = self.plane_vectors();
-        let mut p = point - pos;
+        let (pos, r, s) = self.plane_vectors();
+        let p = point - pos;
         // let lgs1 = ((r.x, s.x, p.x),
         //             (r.y, s.y, p.y));
         //
