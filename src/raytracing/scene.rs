@@ -9,10 +9,10 @@ use image::{
     ImageBuffer,
     Rgb
 };
-
+#[derive(Clone, Debug)]
 pub struct Config {
     /// determines, at which distance a ray is seen as having hit an object
-    raymarch_collision_threshold: f64,
+    pub raymarch_collision_threshold: f64,
     /// Determines, how much of the minimum distance is gone per step.
     /// This is done so that the ray won't go directly into the closest object.
     ///
@@ -21,78 +21,60 @@ pub struct Config {
     /// In case of visual artifacts, where a ray goes through an object, make this smaller.
     ///
     /// **DO NOT make this larger than 1.**
-    raymarch_step_size_multiplier: f64,
+    pub raymarch_step_size_multiplier: f64,
     /// determines, how many rays are shot out per pixel. The more, the lower quality, the higher, the more costly the renderer will get.
-    rays_per_pixel: usize,
+    pub rays_per_pixel: usize,
     /// The maximum number of bounces a ray can make.
     /// The higher, the more indirect lighting will appear, the less, the faster the rendering will be.
-    max_bounces: usize,
+    pub max_bounces: usize,
     /// The maximum amount of steps a ray can make.
     /// The higher, the more accurate the image, the lower, the faster the image renders.
-    max_steps: usize,
+    pub max_steps: usize,
     /// The distance at which point the renderer assumes that the ray won't hit anything.
-    max_distance: f64,
+    pub max_distance: f64,
+    /// The distance of the focal point.
+    pub focal_length: f64,
+    /// The maximum offset of each ray at the focal point. Can be used for a bit of anti-Aliasing at the focal point
+    pub focal_offset: f64,
+    /// The maximum offset of each ray's start position. This makes the focus effect stronger/weaker.
+    pub non_focal_offset: f64,
+}
+macro_rules! reassign {
+    ($self:ident, $field:ident) => {
+        {
+            let mut new = $self.clone();
+            new.$field = $field;
+            new
+        }
+    }
 }
 impl Config {
     pub fn with_raymarch_collision_threshold(&self, raymarch_collision_threshold: f64) -> Self {
-        Self {
-            raymarch_collision_threshold,
-            raymarch_step_size_multiplier: self.raymarch_step_size_multiplier,
-            rays_per_pixel: self.rays_per_pixel,
-            max_bounces: self.max_bounces,
-            max_steps: self.max_steps,
-            max_distance: self.max_distance,
-        }
+        reassign!(self, raymarch_collision_threshold)
     }
     pub fn with_raymarch_step_size_multiplier(&self, raymarch_step_size_multiplier: f64) -> Self {
-        Self {
-            raymarch_collision_threshold: self.raymarch_collision_threshold,
-            raymarch_step_size_multiplier,
-            rays_per_pixel: self.rays_per_pixel,
-            max_bounces: self.max_bounces,
-            max_steps: self.max_steps,
-            max_distance: self.max_distance,
-        }
+        reassign!(self, raymarch_step_size_multiplier)
     }
     pub fn with_rays_per_pixel(&self, rays_per_pixel: usize) -> Self {
-        Self {
-            raymarch_collision_threshold: self.raymarch_collision_threshold,
-            raymarch_step_size_multiplier: self.raymarch_step_size_multiplier,
-            rays_per_pixel,
-            max_bounces: self.max_bounces,
-            max_steps: self.max_steps,
-            max_distance: self.max_distance,
-        }
+        reassign!(self, rays_per_pixel)
     }
     pub fn with_max_bounces(&self, max_bounces: usize) -> Self {
-        Self {
-            raymarch_collision_threshold: self.raymarch_collision_threshold,
-            raymarch_step_size_multiplier: self.raymarch_step_size_multiplier,
-            rays_per_pixel: self.rays_per_pixel,
-            max_bounces,
-            max_steps: self.max_steps,
-            max_distance: self.max_distance,
-        }
+        reassign!(self, max_bounces)
     }
     pub fn with_max_steps(&self, max_steps: usize) -> Self {
-        Self {
-            raymarch_collision_threshold: self.raymarch_collision_threshold,
-            raymarch_step_size_multiplier: self.raymarch_step_size_multiplier,
-            rays_per_pixel: self.rays_per_pixel,
-            max_bounces: self.max_bounces,
-            max_steps,
-            max_distance: self.max_distance,
-        }
+        reassign!(self, max_steps)
     }
     pub fn with_max_distance(&self, max_distance: f64) -> Self {
-        Self {
-            raymarch_collision_threshold: self.raymarch_collision_threshold,
-            raymarch_step_size_multiplier: self.raymarch_step_size_multiplier,
-            rays_per_pixel: self.rays_per_pixel,
-            max_bounces: self.max_bounces,
-            max_steps: self.max_steps,
-            max_distance,
-        }
+        reassign!(self, max_distance)
+    }
+    pub fn with_focal_length(&self, focal_length: f64) -> Self {
+        reassign!(self, focal_length)
+    }
+    pub fn with_focal_offset(&self, focal_offset: f64) -> Self {
+        reassign!(self, focal_offset)
+    }
+    pub fn with_non_focal_offset(&self, non_focal_offset: f64) -> Self {
+        reassign!(self, non_focal_offset)
     }
 }
 impl Default for Config {
@@ -104,6 +86,9 @@ impl Default for Config {
             max_bounces: 10,
             max_steps: 100,
             max_distance: 1e12,
+            focal_length: 1000f64,
+            focal_offset: 1e-4,
+            non_focal_offset: 1e-1,
         }
     }
 }
