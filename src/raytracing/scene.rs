@@ -86,7 +86,7 @@ impl Default for Config {
             max_bounces: 10,
             max_steps: 100,
             max_distance: 1e12,
-            focal_length: 1000f64,
+            focal_length: 10f64,
             focal_offset: 1e-4,
             non_focal_offset: 1e-1,
         }
@@ -200,7 +200,16 @@ impl Scene {
         let ray = Ray::new(self.camera.position, ray_dir);
         avg(
             (0..self.config.rays_per_pixel)
-                .map(|_| { self.render_ray(ray) })
+                .map(|_| {
+                    let mut ray = ray.clone();
+                    let ray_position = ray.position + Vector3::random() * self.config.non_focal_offset;
+                    let focal_point = ray.position + ray.direction * self.config.focal_length;
+                    let target_point = focal_point + Vector3::random() * self.config.focal_offset;
+                    let ray_direction = target_point - ray_position;
+                    ray.position = ray_position;
+                    ray.direction = ray_direction.norm();
+                    self.render_ray(ray)
+                })
         )
     }
     fn get_ray_dir(&self, x: f64, y: f64, vertical_fov: f64) -> Vector3 {
