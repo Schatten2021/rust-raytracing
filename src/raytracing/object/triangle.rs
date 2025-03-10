@@ -1,16 +1,14 @@
 use crate::math::Vector3;
-use crate::object::Object;
+use crate::object::CustomShape;
 
 #[derive(Debug, Clone)]
 pub struct Triangle {
     pub vertices: [Vector3; 3],
-    pub base_color: Vector3,
-    pub emission_color: Vector3,
 }
 impl Triangle {
     /// creates a new triangle
-    pub fn new(vertices: [Vector3; 3], base_color: Vector3, emission_color: Vector3) -> Self {
-        Self { vertices, base_color, emission_color }
+    pub fn new(vertices: [Vector3; 3]) -> Self {
+        Self { vertices }
     }
 }
 impl Triangle {
@@ -87,16 +85,10 @@ impl Triangle {
         0. <= a && a <= 1. && 0. <= b && b <= 1. && (a+b) <= 1. && (lgs3.z.abs() < 1e10)
     }
 }
-impl Object for Triangle {
+impl CustomShape for Triangle {
     fn normal(&self, _world_position: Vector3) -> Vector3 {
         let (_, a, b) = self.plane_vectors();
         a.cross(b).norm()
-    }
-    fn get_base(&self, _world_hit_pos: Vector3) -> Vector3 {
-        self.base_color
-    }
-    fn get_emission(&self, _world_hit_pos: Vector3) -> Vector3 {
-        self.emission_color
     }
     fn distance(&self, pos: Vector3, dir: Vector3) -> Option<f64> {
         if self.normal(Vector3::zeros()).dot(dir) >= 0.0 {

@@ -32,6 +32,16 @@ impl Vector3 {
             z: fastrand::f64(),
         }
     }
+    pub fn random_direction() -> Self {
+        let z = fastrand::f64() * 2.0 - 1.0;
+        let theta = fastrand::f64() * 2.0 * std::f64::consts::PI;
+        let r = (1.0 - z * z).sqrt();
+        Self {
+            x: r * theta.cos(),
+            y: r * theta.sin(),
+            z,
+        }.norm()
+    }
     /// creates a Vector with all ones
     pub const fn ones() -> Vector3 {
         Vector3 {
@@ -67,12 +77,8 @@ impl Vector3 {
         self.z = new.z;
     }
     /// creates a new vector with all zeros
-    pub fn zeros() -> Self {
-        Vector3 {
-            x: 0.,
-            y: 0.,
-            z: 0.,
-        }
+    pub const fn zeros() -> Self {
+        Vector3::const_new(0.0, 0.0, 0.0)
     }
     /// calculates the dot product between two vectors
     pub fn dot(&self, other: Self) -> f64 {

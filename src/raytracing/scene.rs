@@ -1,8 +1,8 @@
 use crate::math::Vector3;
-use crate::object::ObjectMode;
 use crate::raytracing::camera::Camera;
 use crate::raytracing::object::Object;
 use crate::raytracing::ray::Ray;
+use std::thread;
 
 #[cfg(feature = "images")]
 use image::{
@@ -92,8 +92,9 @@ impl Default for Config {
         }
     }
 }
+#[derive(Clone)]
 pub struct Scene {
-    objects: Vec<Box<dyn Object>>,
+    pub objects: Vec<Object>,
     /// The camera that this scene is rendered from
     pub camera: Camera,
     /// The configuration of this scene.
@@ -139,8 +140,8 @@ impl Scene {
     /// * `object`: The object to add
     ///
     /// returns: ()
-    pub fn add_object<T: Object + 'static>(&mut self, object: T) -> () {
-        self.objects.push(Box::new(object));
+    pub fn add_object(&mut self, object: Object) -> () {
+        self.objects.push(object);
     }
     /// Renders the scene as an image.
     ///
@@ -163,34 +164,46 @@ impl Scene {
             .into_iter()
             .enumerate()
             .map(|(y, row)| {
-                let done = (y as f64) / (height as f64);
-                println!("rendering row {} out of {} ({:.2}%)", y, height, done * 100.0);
-                let y = (y as f64) / (height as f64);
-                row.into_iter()
-                    .enumerate()
-                    .map(|(x, _pixel)| {
-                        let x = (x as f64) / (width as f64);
-                        let uv = (x, y);
-                        self.render_pixel(uv, vertical_fov)
-                    })
-                    .collect()
+                let this = self.clone();
+                thread::spawn(move || {
+                    // let row_index = y;
+                    let y = (y as f64) / (height as f64);
+                    let res = row.into_iter()
+                        .enumerate()
+                        .map(|(x, _pixel)| {
+                            let x = (x as f64) / (width as f64);
+                            let uv = (x, y);
+                            this.render_pixel(uv, vertical_fov)
+                        })
+                        .collect::<Vec<_>>();
+                    // let done = (y) / (height as f64);
+                    // println!("rendered row {} out of {} ({:.2}%)", row_index, height, done * 100.0);
+                    res
+                })
             })
-            .collect()
+            .collect::<Vec<_>>().into_iter()
+            .map(|t| t.join().unwrap())
+            .collect::<Vec<_>>()
     }
     /// Renders the scene to an ImageBuffer. Requires the `images` feature
     #[cfg(feature = "images")]
     pub fn render_to_image(&self, width: usize, height: usize) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
-        let vertical_fov = (height as f64) / (width as f64) * self.camera.fov;
+        let img = self.render(width, height);
         ImageBuffer::from_fn(width as u32, height as u32, |x, y| {
-            if x == 0 {
-                let done = (y as f64) / (height as f64);
-                println!("rendering row {} out of {} ({:.2}%)", y, height, done * 100.0);
-            }
-            let x = (x as f64) / (width as f64);
-            let y = (y as f64) / (height as f64);
-            let col = self.render_pixel((x, y), vertical_fov) * 256;
+            let col = img[height - y as usize - 1][x as usize].clone() * 256;
             Rgb([col.x as u8, col.y as u8, col.z as u8])
         })
+        // let vertical_fov = (height as f64) / (width as f64) * self.camera.fov;
+        // ImageBuffer::from_fn(width as u32, height as u32, |x, y| {
+        //     if x == 0 {
+        //         let done = (y as f64) / (height as f64);
+        //         println!("rendering row {} out of {} ({:.2}%)", y, height, done * 100.0);
+        //     }
+        //     let x = (x as f64) / (width as f64);
+        //     let y = (y as f64) / (height as f64);
+        //     let col = self.render_pixel((x, 1.0 - y), vertical_fov) * 256;
+        //     Rgb([col.x as u8, col.y as u8, col.z as u8])
+        // })
     }
 
 }
@@ -201,6 +214,7 @@ impl Scene {
         avg(
             (0..self.config.rays_per_pixel)
                 .map(|_| {
+                    // focal point calculations
                     let mut ray = ray.clone();
                     let ray_position = ray.position + Vector3::random() * self.config.non_focal_offset;
                     let focal_point = ray.position + ray.direction * self.config.focal_length;
@@ -208,6 +222,7 @@ impl Scene {
                     let ray_direction = target_point - ray_position;
                     ray.position = ray_position;
                     ray.direction = ray_direction.norm();
+                    // actual rendering happening
                     self.render_ray(ray)
                 })
         )
@@ -230,82 +245,26 @@ impl Scene {
             if ray.light_color == Vector3::zeros() {
                 break;
             }
-            let rtx_hit = self.closest_rtx_object(ray);
+            let rtx_hit = self.closest_object(ray);
             match rtx_hit {
-                Some(hit) => self.raymarch_with_rtx_objects(&mut ray, hit),
-                None => self.raymarch_without_rtx_object(&mut ray),
+                Some((dst, obj)) => {
+                    ray.position += ray.direction * dst;
+                    ray_hit(&mut ray, obj);
+                    // return ray.direction;
+                },
+                None => break,
             }
         }
         ray.resulting_color
     }
-    fn closest_rtx_object(&self, ray: Ray) -> Option<(f64, &Box<dyn Object>)> {
+    fn closest_object(&self, ray: Ray) -> Option<(f64, &Object)> {
         self.objects.iter()
-            .filter(|obj| obj.mode() == ObjectMode::RayTracing)
-            .filter_map(|obj| {
-                match obj.distance(ray.position, ray.direction) {
-                    Some(dst) => Some((dst, obj)),
-                    None => None,
-                }
-            })
-            .filter(|(dst, _)| dst.is_normal() && dst.is_sign_positive())
-            .min_by(|(dst, _), (dst2, _)| dst.total_cmp(dst2))
-    }
-    fn raymarch_with_rtx_objects(&self, ray: &mut Ray, rtx_hit: (f64, &Box<dyn Object>)) -> () {
-        for _ in 0..self.config.max_steps {
-            let closest_raymarch_obj = self.closest_raymarch_object(ray.clone());
-            let Some((dst, obj)) = closest_raymarch_obj else {
-                ray.position += ray.direction * rtx_hit.0;
-                self.ray_hit(ray, rtx_hit.1);
-                return;
-            };
-            if rtx_hit.0 < dst {
-                ray.position += ray.direction * rtx_hit.0;
-                self.ray_hit(ray, rtx_hit.1);
-                return;
-            }
-            if dst < self.config.raymarch_collision_threshold {
-                ray.position += ray.direction * dst;
-                self.ray_hit(ray, obj);
-                return;
-            }
-            if dst > self.config.max_distance {
-                break;
-            }
-            ray.position += ray.direction * dst * self.config.rays_per_pixel;
-        }
-    }
-    fn raymarch_without_rtx_object(&self, ray: &mut Ray) -> () {
-        for _ in 0..self.config.max_steps {
-            let closest_raymarch_obj = self.closest_raymarch_object(ray.clone());
-            let Some((dst, obj)) = closest_raymarch_obj else {
-                return;
-            };
-
-            if dst < self.config.raymarch_collision_threshold {
-                ray.position += ray.direction * dst;
-                self.ray_hit(ray, obj);
-                return;
-            }
-            if dst > self.config.max_distance {
-                break;
-            }
-            ray.position += ray.direction * dst * self.config.rays_per_pixel;
-        }
-    }
-    fn closest_raymarch_object(&self, ray: Ray) -> Option<(f64, &Box<dyn Object>)> {
-        self.objects.iter()
-            .filter(|obj| obj.mode() == ObjectMode::RayMarching)
             .filter_map(|obj| {
                 obj.distance(ray.position, ray.direction)
                     .map(|dst| (dst, obj))
             })
             .filter(|(dst, _)| dst.is_normal() && dst.is_sign_positive())
-            .min_by(|(dst, _), (dst2, _)| dst.total_cmp(dst2))
-    }
-    fn ray_hit(&self, ray: &mut Ray, obj: &Box<dyn Object>) -> () {
-        ray.direction = obj.update_dir(ray.position, ray.direction);
-        ray.resulting_color += ray.light_color * obj.get_emission(ray.position);
-        ray.light_color *= obj.get_base(ray.position);
+            .min_by(move |(dst, _), (dst2, _)| dst.total_cmp(dst2))
     }
 }
 fn avg<I: ExactSizeIterator, R>(iter: I) -> R
@@ -314,4 +273,14 @@ where <I as Iterator>::Item: std::iter::Sum,
 {
     let length = iter.len();
     iter.sum::<I::Item>() / length
+}
+fn ray_hit(ray: &mut Ray, object: &Object) {
+    let surface_normal = object.normal_at(ray.position);
+    let random_dir = Vector3::random_direction();
+    let new_dir = if random_dir.dot(surface_normal) < 0.0 {
+        -random_dir
+    } else {random_dir};
+    ray.direction = new_dir;
+    ray.resulting_color += ray.light_color * object.material.emission_color;
+    ray.light_color *= object.material.base_color;
 }
