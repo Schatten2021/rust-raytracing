@@ -46,9 +46,12 @@ impl Triangle {
         //
         // let a = lgs3.0.2;
         // let b = lgs3.1.2;
+
+        // a * r + b * s = p
         let mut lgs1 = Vector3::new(r.x, s.x, p.x);
         let mut lgs2 = Vector3::new(r.y, s.y, p.y);
         let mut lgs3 = Vector3::new(r.z, s.z, p.z);
+        // let original = [lgs1, lgs2, lgs3];
 
         if lgs1.x == 0.0 {
             // println!("{lgs1}, {lgs2}, {lgs3}");
@@ -65,6 +68,10 @@ impl Triangle {
         lgs1 /= lgs1.x;
         lgs2 -= lgs1 * (lgs2.x / lgs1.x);
         lgs3 -= lgs1 * (lgs3.x / lgs1.x);
+        // let first_it = [lgs1, lgs2, lgs3];
+        assert_eq!(lgs1.x, 1.0);
+        assert_eq!(lgs2.x, 0.0);
+        assert_eq!(lgs3.x, 0.0);
         // print!("{:?} => ", (lgs1, lgs2, lgs3));
         // lgs2.x & lgs3.x = 0
         if lgs2.y == 0.0 {
@@ -75,14 +82,18 @@ impl Triangle {
             (lgs2, lgs3) = (lgs3, lgs2);
         }
         lgs2 /= lgs2.y;
-        lgs1 -= lgs1 * (lgs1.y / lgs2.y);
-        lgs3 -= lgs3 * (lgs3.y / lgs2.y);
+        lgs1 -= lgs2 * (lgs1.y / lgs2.y);
+        lgs3 -= lgs2 * (lgs3.y / lgs2.y);
+        // let second_it = [lgs1, lgs2, lgs3];
+        assert_eq!(lgs1.y, 0.0);
+        assert_eq!(lgs2.y, 1.0);
+        assert_eq!(lgs3.y, 0.0);
 
         let (a, b) = (lgs1.z, lgs2.z);
 
         // println!("{:?} => {:?}",(lgs1, lgs2, lgs3), (a, b));
         // print!("{a} {b}; ");
-        0. <= a && a <= 1. && 0. <= b && b <= 1. && (a+b) <= 1. && (lgs3.z.abs() < 1e10)
+        0. <= a && a <= 1. && 0. <= b && b <= 1. && (a+b) <= 1. //&& (lgs3.z.abs() < 1e10)
     }
 }
 impl CustomShape for Triangle {
@@ -91,8 +102,13 @@ impl CustomShape for Triangle {
         a.cross(b).norm()
     }
     fn distance(&self, pos: Vector3, dir: Vector3) -> Option<f64> {
-        if self.normal(Vector3::zeros()).dot(dir) >= 0.0 {
-            // println!("triangle angled the wrong way");
+        // triangle is the other way
+        // if self.normal(Vector3::zeros()).dot(dir) >= 0.0 {
+        //     // println!("triangle angled the wrong way");
+        //     return None;
+        // }
+        // behind triangle
+        if self.normal(Vector3::zeros()).dot(self.vertices[0] - dir) < 0.0 {
             return None;
         }
         let distance = self.plane_distance((pos, dir)).abs();

@@ -81,4 +81,18 @@ mod tests {
         assert_eq!(cam.to_world_space(Vector3::y()), Vector3::z());
         assert_eq!(cam.to_world_space(Vector3::z()), Vector3::x());
     }
+    #[test]
+    fn from_cam_space_2() {
+        let cam = Camera::new(Vector3::zeros(), Vector3::y(), 90f64.to_radians());
+        assert_eq!(cam.to_world_space(Vector3::x()), -Vector3::x());
+        assert_eq!(cam.to_world_space(Vector3::y()), Vector3::z());
+        assert_eq!(cam.to_world_space(Vector3::z()), Vector3::y());
+    }
+    #[test]
+    fn from_world_space_2() {
+        let cam = Camera::new(Vector3::zeros(), Vector3::y(), 90f64.to_radians());
+        assert_eq!(cam.to_cam_space(Vector3::x()), -Vector3::x());
+        assert_eq!(cam.to_cam_space(Vector3::y()), Vector3::z());
+        assert_eq!(cam.to_cam_space(Vector3::z()), Vector3::y());
+    }
 }

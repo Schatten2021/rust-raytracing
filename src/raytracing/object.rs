@@ -81,11 +81,16 @@ pub struct Material {
     pub base_color: Vector3,
     /// The color of emissions on the object.
     pub emission_color: Vector3,
+    /// How rough the material is.
+    /// 0 means rays are only reflected, 1 means rays bounce randomly.
+    ///
+    /// The lower the number, the more the rays bounce towards a full reflection.
+    pub roughness: f64,
 }
 impl Material  {
     /// creates a new material with the given specs
-    pub const fn new(base_color: Vector3, emission_color: Vector3) -> Self {
-        Self { base_color, emission_color }
+    pub const fn new(base_color: Vector3, emission_color: Vector3, roughness: f64) -> Self {
+        Self { base_color, emission_color, roughness }
     }
     /// Creates a new material with only a color component.
     ///
@@ -104,7 +109,7 @@ impl Material  {
     /// let red = Material::colored(Vector3::x());
     /// ```
     pub const fn colored(color: Vector3) -> Self {
-        Self::new(color, Vector3::zeros())
+        Self::new(color, Vector3::zeros(), 1f64)
     }
     /// Creates a new material with only an emissions component.
     ///
@@ -123,6 +128,9 @@ impl Material  {
     /// let sun = Material::light(Vector3::new(1, 0.8, 0.5)); // orange-ish light
     /// ```
     pub const fn light(light_color: Vector3) -> Self {
-        Self::new(Vector3::zeros(), light_color)
+        Self::new(Vector3::zeros(), light_color, 1f64)
+    }
+    pub const fn mirror() -> Self {
+        Self::new(Vector3::ones(), Vector3::zeros(), 1f64)
     }
 }

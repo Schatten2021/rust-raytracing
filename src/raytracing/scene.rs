@@ -11,17 +11,17 @@ use image::{
 };
 #[derive(Clone, Debug)]
 pub struct Config {
-    /// determines, at which distance a ray is seen as having hit an object
-    pub raymarch_collision_threshold: f64,
-    /// Determines, how much of the minimum distance is gone per step.
-    /// This is done so that the ray won't go directly into the closest object.
-    ///
-    /// Should be made as close to 1 as possible but not 1.
-    ///
-    /// In case of visual artifacts, where a ray goes through an object, make this smaller.
-    ///
-    /// **DO NOT make this larger than 1.**
-    pub raymarch_step_size_multiplier: f64,
+    // /// determines, at which distance a ray is seen as having hit an object
+    // pub raymarch_collision_threshold: f64,
+    // /// Determines, how much of the minimum distance is gone per step.
+    // /// This is done so that the ray won't go directly into the closest object.
+    // ///
+    // /// Should be made as close to 1 as possible but not 1.
+    // ///
+    // /// In case of visual artifacts, where a ray goes through an object, make this smaller.
+    // ///
+    // /// **DO NOT make this larger than 1.**
+    // pub raymarch_step_size_multiplier: f64,
     /// determines, how many rays are shot out per pixel. The more, the lower quality, the higher, the more costly the renderer will get.
     pub rays_per_pixel: usize,
     /// The maximum number of bounces a ray can make.
@@ -49,12 +49,12 @@ macro_rules! reassign {
     }
 }
 impl Config {
-    pub fn with_raymarch_collision_threshold(&self, raymarch_collision_threshold: f64) -> Self {
-        reassign!(self, raymarch_collision_threshold)
-    }
-    pub fn with_raymarch_step_size_multiplier(&self, raymarch_step_size_multiplier: f64) -> Self {
-        reassign!(self, raymarch_step_size_multiplier)
-    }
+    // pub fn with_raymarch_collision_threshold(&self, raymarch_collision_threshold: f64) -> Self {
+    //     reassign!(self, raymarch_collision_threshold)
+    // }
+    // pub fn with_raymarch_step_size_multiplier(&self, raymarch_step_size_multiplier: f64) -> Self {
+    //     reassign!(self, raymarch_step_size_multiplier)
+    // }
     pub fn with_rays_per_pixel(&self, rays_per_pixel: usize) -> Self {
         reassign!(self, rays_per_pixel)
     }
@@ -80,8 +80,8 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            raymarch_collision_threshold: 1e-6,
-            raymarch_step_size_multiplier: 0.99,
+            // raymarch_collision_threshold: 1e-6,
+            // raymarch_step_size_multiplier: 0.99,
             rays_per_pixel: 16,
             max_bounces: 10,
             max_steps: 100,
@@ -241,7 +241,7 @@ impl Scene {
         if self.objects.is_empty() {
             return ray.resulting_color;
         }
-        for _ in 0..self.config.max_bounces {
+        for _ in 0..(self.config.max_bounces+1) {
             if ray.light_color == Vector3::zeros() {
                 break;
             }
@@ -275,12 +275,35 @@ where <I as Iterator>::Item: std::iter::Sum,
     iter.sum::<I::Item>() / length
 }
 fn ray_hit(ray: &mut Ray, object: &Object) {
-    let surface_normal = object.normal_at(ray.position);
-    let random_dir = Vector3::random_direction();
-    let new_dir = if random_dir.dot(surface_normal) < 0.0 {
-        -random_dir
-    } else {random_dir};
-    ray.direction = new_dir;
+    // let surface_normal = object.normal_at(ray.position);
+    // let random_dir = Vector3::random_direction();
+    // let reflected_dir = ray.direction - surface_normal * (ray.direction.dot(surface_normal)) * 2;
+    // let offset = random_dir - reflected_dir;
+    //
+    // let reflection_index = (1.0 - object.material.roughness);
+    // let new_dir = random_dir + offset * reflection_index;
+    // let random_dir = Vector3::random_direction();
+    // let random_dir = if random_dir.dot(surface_normal) < 0.0 {
+    //     -random_dir
+    // } else {random_dir};
+    // let reflected_dir = ray.direction - surface_normal * (ray.direction.dot(surface_normal)) * 2;
+    // let new_dir = if fastrand::f64() > object.material.roughness * ( random_dir.dot(reflected_dir) * 0.5 + 0.5) { reflected_dir } else {random_dir};
+
+    ray.direction = random_bounce_dir(ray.direction, object.normal_at(ray.position), object.material.roughness);
     ray.resulting_color += ray.light_color * object.material.emission_color;
     ray.light_color *= object.material.base_color;
+}
+fn random_bounce_dir(ray_dir: Vector3, surface_normal: Vector3, surface_roughness: f64) -> Vector3 {
+    let random_dir = Vector3::random_direction();
+    let reflection_dir = ray_dir - surface_normal * 2 * ray_dir.dot(surface_normal);
+    let random_to_reflection_dir = reflection_dir - random_dir;
+    let reflection_mult = 1.0 - surface_roughness;
+    let final_direction = random_dir + random_to_reflection_dir * reflection_mult;
+
+    let final_direction = final_direction.norm();
+    if final_direction.dot(surface_normal) > 0.0 {
+        final_direction
+    } else {
+        -final_direction
+    }
 }
