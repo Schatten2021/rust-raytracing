@@ -24,7 +24,7 @@ impl Object {
         Self { shape, material }
     }
     pub(crate) fn normal_code(&self) -> String {
-        self.shape.lock().unwrap().normal_calculation()
+        self.shape.lock().unwrap().normal_calculation_code()
     }
     pub(crate) fn distance(&self) -> String {
         self.shape.lock().unwrap().distance_code()
@@ -57,12 +57,25 @@ pub trait GpuShape: GpuSerialize {
     /// generates the wgsl code for generating the distance.
     ///
     /// function takes two `vec3<f32>`s. 1st one is the position, 2nd one is the direction in world space.
-    /// The function should return one
+    /// The function should return a DistanceInfo object which is constructed via 1 bool and 1 f32.
+    /// The boolean dictates, whether the object was actually hit or not and the f32 dictates the distance.
+    /// If the Object isn't hit (boolean  is false) the distance is ignored.
     ///
+    /// Example code (sphere):
     /// ``` wgsl
-    /// fn distance(ray_position: vec3<f32>, ray_direction) -> (bool, f32) {
+    /// // define the struct for code completion/etc.
+    /// struct Sphere {
+    ///     position: vec3<f32>,
+    ///     radius: f32,
+    /// }
+    /// // redefine the value for easier use (code completion/etc.)
+    /// Sphere self = Sphere(self.position, self.radius);
+    /// // define an inner function (again, easier use)
+    /// fn distance(self: Sphere, ray_position: vec3<f32>, ray_direction: vec3<f32>) -> DistanceInfo {
     ///     ...
     /// }
+    /// // call the function.
+    /// return distance(self, ray_position, ray_direction);
     /// ```
     fn distance_code(&self) -> String;
     /// returns wgsl code for calculating the normal at a given point.
@@ -71,11 +84,12 @@ pub trait GpuShape: GpuSerialize {
     /// The function should return one `vec<f32>`: The normal at the given point.
     ///
     /// ``` wgsl
-    /// fn distance(position: vec3<f32>) -> vec3<f32> {
+    /// fn normal(position: vec3<f32>) -> vec3<f32> {
     ///     ...
     /// }
+    /// return normal(position);
     /// ```
-    fn normal_calculation(&self) -> String;
+    fn normal_calculation_code(&self) -> String;
     // fn object_type(&self) -> String;
 }
 /// represents the material of an [Object]

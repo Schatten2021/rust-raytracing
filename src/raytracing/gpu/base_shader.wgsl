@@ -55,3 +55,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
 //    color = vec4(objects[0].base_color, 0.0);
     return color;
 }
+struct DistanceInfo {
+    did_hit: bool,
+    distance: vec3<f32>,
+}

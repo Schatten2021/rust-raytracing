@@ -15,6 +15,9 @@ pub struct GpuState<'a> {
     pub(crate) object_buffers: Vec<Buffer>,
     pub(crate) cam_buffer: Buffer,
     pub(crate) aspect_ratio_buffer: Buffer,
+    pub(crate) distance_functions: Vec<String>,
+    pub(crate) normal_functions: Vec<String>,
+    pub(crate) struct_fields: Vec<Vec<(String, String)>>,
 }
 impl<'a> GpuState<'a> {
     pub fn new(surface: Surface<'a>, device: Device, targets: Vec<Option<ColorTargetState>>, camera: &Camera) -> GpuState<'a> {
@@ -35,17 +38,20 @@ impl<'a> GpuState<'a> {
             size: 0,
             mapped_at_creation: false,
         });
-        let pipeline = Self::create_pipeline(&device, &*targets, &vec![]);
+        let pipeline = Self::create_pipeline(&device, &*targets, &vec![], &vec![], &vec![], &vec![]);
         println!("gpu state initialized");
         Self {
             surface,
             device,
             targets,
-            object_buffers: vec![],
             pipeline,
             cam_buffer,
             aspect_ratio_buffer,
             objects_buffer,
+            object_buffers: vec![],
+            distance_functions: vec![],
+            normal_functions: vec![],
+            struct_fields: vec![],
         }
     }
     pub fn destroy(&mut self) {
@@ -105,15 +111,28 @@ impl<'a> GpuState<'a> {
                 contents: &*shape.serialize(),
             })
         );
-        self.pipeline = Self::create_pipeline(&self.device, &*self.targets, &self.object_buffers);
+        self.distance_functions.push(shape.distance_code());
+        self.normal_functions.push(shape.normal_calculation_code());
+        self.struct_fields.push(shape.struct_fields());
+        self.pipeline = Self::create_pipeline(&self.device,
+                                              &*self.targets,
+                                              &self.object_buffers,
+                                              &self.distance_functions,
+                                              &self.normal_functions,
+                                              &self.struct_fields);
     }
 }
 impl<'a> GpuState<'a> {
-    fn create_pipeline(device: &Device, targets:  &[Option<ColorTargetState>], object_buffers: &Vec<Buffer>) -> RenderPipeline {
+    fn create_pipeline(device: &Device,
+                       targets:  &[Option<ColorTargetState>],
+                       object_buffers: &Vec<Buffer>,
+                       distance_functions: &Vec<String>,
+                       normal_functions: &Vec<String>,
+                       structs_fields: &Vec<Vec<(String, String)>>,) -> RenderPipeline {
         let pipeline_layout = Self::create_pipeline_layout(device, object_buffers);
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("raytracing shader"),
-            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(Self::build_shader())),
+            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&*Self::build_shader(distance_functions, normal_functions, structs_fields))),
         });
         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("raytracing render pipeline"),
@@ -201,8 +220,86 @@ impl<'a> GpuState<'a> {
             entries: &*entries,
         })
     }
-    fn build_shader<'b>() -> &'b str {
-        BASE_SHADER
+    fn build_shader(distance_functions: &Vec<String>,
+                        normal_functions: &Vec<String>,
+                        structs_fields: &Vec<Vec<(String, String)>>,) -> String {
+        let distance_functions = distance_functions.iter()
+            .enumerate()
+            .map(|(i, distance_function)| {
+                format!("fn distance_object_{i}(ray_position: vec3<f32>, ray_direction: vec3<f32>) -> DistanceInfo {{\
+                let current = object_{i};\
+                {distance_function}\
+                }}")
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        let normal_functions = normal_functions.iter()
+            .enumerate()
+            .map(|(i, normal_function)| {
+                format!("fn normal_object_{i}(world_pos: vec3<f32>) -> vec3<f32> {{\
+                let current = object_{i};\
+                {normal_function}\
+                }}")
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        let struct_definitions = structs_fields.iter()
+            .enumerate()
+            .map(|(i, struct_fields)| {
+                format!(
+                    "struct ObjectStruct{i} {{{}}}",
+                    struct_fields.iter()
+                        .map(|(name, r#type)| {
+                            format!("\t{name}: {type},")
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        let uniform_definitions = (0..structs_fields.len())
+            .map(|i| {
+                format!("@group(1)
+@binding({i})
+var<uniform> object_{i}: ObjectStruct{i};")
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        let distance_function = format!(
+            "fn calculate_distance(ray_pos: vec3<f32>, ray_direction: vec3<f32>, object_id: u32) -> DistanceInfo {{\
+                switch (object_id) {{\
+                    {cases}
+                    default: {{return DistanceInfo(false, vec3<f32>(0.0, 0.0, 0.0));}}
+                }}
+            }}",
+            cases = (0..structs_fields.len())
+                .map(|i| format!("case {i}u: {{return distance_object_{i}(ray_pos, ray_direction);}}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+        let normal_function = format!(
+            "fn calculate_normal(world_pos: vec3<f32>, object_id: u32) -> vec3<f32> {{\
+                switch (object_id) {{\
+                    {cases}
+                    default: {{return vec3<f32>(1.0,0.0,0.0);}}
+                }}
+            }}",
+            cases = (0..structs_fields.len())
+                .map(|i| format!("case {i}u: {{return normal_object_{i}(world_pos);}}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+        let shader = format!("{BASE_SHADER}\
+        {distance_functions}\
+        {normal_functions}\
+        {struct_definitions}\
+        {uniform_definitions}\
+        {distance_function}\
+        {normal_function}\
+        ");
+        println!("{}", shader);
+        shader
     }
     fn create_bind_group_for_builtins(&self) -> BindGroup {
         self.device.create_bind_group(&BindGroupDescriptor {

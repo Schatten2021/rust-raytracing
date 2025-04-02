@@ -46,10 +46,10 @@ impl GpuShape for Sphere {
     }
 
     fn distance_code(&self) -> String {
-        todo!()
+        "return DistanceInfo(false, vec3<f32>(0.0, 0.0, 0.0));".to_string()
     }
 
-    fn normal_calculation(&self) -> String {
-        todo!()
+    fn normal_calculation_code(&self) -> String {
+        "return vec3<f32>(1.0, 0.0, 0.0);".to_string()
     }
 }
