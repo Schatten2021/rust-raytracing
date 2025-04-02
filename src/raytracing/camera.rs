@@ -1,4 +1,5 @@
 use crate::math::{Mat3x3, Vector3};
+use crate::raytracing::gpu::GpuSerialize;
 
 #[derive(Debug, Clone)]
 /// represents a camera in the scene
@@ -62,6 +63,15 @@ impl Camera {
     /// returns: Vector3
     pub fn rotate_to_world_space(&self, vec: Vector3) -> Vector3 {
         self.to_world_space * vec
+    }
+}
+impl GpuSerialize for Camera {
+    fn serialize(&self) -> Vec<u8> {
+        self.position.serialize().into_iter()
+            .chain(self.direction.serialize())
+            .chain([0;4])
+            .chain(self.fov.serialize())
+            .collect()
     }
 }
 #[cfg(test)]

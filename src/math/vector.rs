@@ -3,6 +3,7 @@ mod div;
 mod add;
 mod sub;
 mod iter_ops;
+mod into;
 
 use std::fmt::Display;
 use std::ops::Neg;
@@ -103,16 +104,6 @@ impl Vector3 {
     /// returns the normalized vector (same direction but length = 1)
     pub fn norm(&self) -> Self {
         self / self.len()
-    }
-}
-impl<A: Into<f64>, B: Into<f64>, C: Into<f64>> From<(A, B, C)> for Vector3 {
-    fn from(tuple: (A, B, C)) -> Self {
-        Self::new(tuple.0, tuple.1, tuple.2)
-    }
-}
-impl<T: Into<f64> + Clone> From<[T; 3]> for Vector3 where {
-    fn from(array: [T; 3]) -> Self {
-        Self::new(Into::<f64>::into(array[0].clone()), Into::<f64>::into(array[1].clone()), Into::<f64>::into(array[2].clone()))
     }
 }
 impl From<&Vector3> for Vector3 {

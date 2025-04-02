@@ -6,7 +6,9 @@ edition = "2021"
 [dependencies]
 fastrand = "2.3.0"
 image = { version = "0.25.5", optional = true }
+wgpu = { version = "24.0.1" }
 
 [features]
 default = ["images"]
 images = ["dep:image"]
+#gpu = ["dep:wgpu"]

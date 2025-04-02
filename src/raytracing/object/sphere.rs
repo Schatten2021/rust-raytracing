@@ -1,5 +1,7 @@
 use crate::math::Vector3;
 use crate::object::CustomShape;
+use crate::raytracing::gpu::GpuSerialize;
+use crate::raytracing::gpu::object::GpuShape;
 
 #[derive(Clone, Debug)]
 pub struct Sphere {
@@ -26,5 +28,28 @@ impl CustomShape for Sphere {
     }
     fn normal(&self, world_position: Vector3) -> Vector3 {
         (world_position - self.position).norm()
+    }
+}
+impl GpuSerialize for Sphere {
+    fn serialize(&self) -> Vec<u8> {
+        self.position.serialize().into_iter()
+            .chain(self.radius.serialize())
+            .collect()
+    }
+}
+impl GpuShape for Sphere {
+    fn struct_fields(&self) -> Vec<(String, String)> {
+        vec![
+            ("position".to_string(), "vec3<f32>".to_string()),
+            ("radius".to_string(), "f32".to_string()),
+        ]
+    }
+
+    fn distance_code(&self) -> String {
+        todo!()
+    }
+
+    fn normal_calculation(&self) -> String {
+        todo!()
     }
 }
