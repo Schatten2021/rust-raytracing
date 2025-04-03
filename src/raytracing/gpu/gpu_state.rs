@@ -39,7 +39,7 @@ impl<'a> GpuState<'a> {
             mapped_at_creation: false,
         });
         let pipeline = Self::create_pipeline(&device, &*targets, &vec![], &vec![], &vec![], &vec![]);
-        println!("gpu state initialized");
+        // println!("gpu state initialized");
         Self {
             surface,
             device,
@@ -295,15 +295,33 @@ var<uniform> object_{i}: ObjectStruct{i};")
                 .collect::<Vec<_>>()
                 .join("\n")
         );
-        let shader = format!("{BASE_SHADER}\
-        {distance_functions}\
-        {normal_functions}\
-        {struct_definitions}\
-        {uniform_definitions}\
-        {distance_function}\
-        {normal_function}\
-        ");
-        println!("{}", shader);
+        let shader = format!("{BASE_SHADER}
+
+//
+// DISTANCE FUNCTIONS
+//
+{distance_functions}
+//
+// NORMAL FUNCTIONS
+//
+{normal_functions}
+//
+// STRUCTS
+//
+{struct_definitions}
+//
+// UNIFORMS
+//
+{uniform_definitions}
+//
+// DISTANCE FUNCTIONS
+//
+{distance_function}
+//
+// NORMAL FUNCTIONS
+//
+{normal_function}");
+        // println!("{}", shader);
         shader
     }
     fn create_bind_group_for_builtins(&self) -> BindGroup {

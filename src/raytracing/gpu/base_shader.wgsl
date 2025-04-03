@@ -41,7 +41,7 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
     var output: VertexOutput;
     output.clip_position = vec4<f32>(position, 0.0, 1.0);
     // Map clip space [-1, 1] to UV space [0, 1]:
-    output.uv = position * 0.5; // + vec2<f32>(0.5, 0.5);
+    output.uv = position * vec2<f32>(0.5, -0.5); // + vec2<f32>(0.5, 0.5);
     return output;
 }
 
@@ -60,47 +60,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
 
     let ray = Ray(camera.pos, ray_dir, vec3<f32>(1.0, 1.0, 1.0), vec3<f32>(0.0, 0.0, 0.0));
 
-    var colors: array<vec3<f32>, 50> = array(
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
+    var colors: array<vec3<f32>, 10> = array(
         trace_ray(ray),
         trace_ray(ray),
         trace_ray(ray),
@@ -113,10 +73,10 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
         trace_ray(ray),
     );
     var color: vec3<f32> = vec3(0.0, 0.0, 0.0);
-    for (var i: u32 = 0u; i < 50u; i++) {
+    for (var i: u32 = 0u; i < 10u; i++) {
         color += colors[i];
     }
-    color /= 50.0;
+    color /= 10.0;
 
 //    let color = vec4(camera.fov, aspect_ratio / 2, 0.0, 1.0);
 //    let object_length: u32 = arrayLength(&objects);
@@ -188,12 +148,12 @@ struct Ray {
 }
 fn trace_ray(ray_: Ray) -> vec3<f32> {
     var ray = ray_;
-    for (var i: u32 = 0u; i < 2u; i++) {
+    for (var i: u32 = 0u; i < 10u; i++) {
         let hit_info = closest_object(ray);
         if (!hit_info.did_hit) {
             break;
         }
-        ray.position += ray.direction * hit_info.distance;
+        ray.position += ray.direction * hit_info.distance * 0.9999;
         ray.actual_color += hit_info.object.emission_color * ray.light_color;
         ray.light_color *= hit_info.object.base_color;
         if (all(ray.light_color == vec3<f32>(0.0, 0.0, 0.0))) {
