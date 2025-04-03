@@ -68,8 +68,8 @@ impl Camera {
 impl GpuSerialize for Camera {
     fn serialize(&self) -> Vec<u8> {
         self.position.serialize().into_iter()
-            .chain(self.direction.serialize())
             .chain([0;4])
+            .chain(self.direction.serialize())
             .chain(self.fov.serialize())
             .collect()
     }

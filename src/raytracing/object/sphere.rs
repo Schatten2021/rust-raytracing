@@ -46,7 +46,27 @@ impl GpuShape for Sphere {
     }
 
     fn distance_code(&self) -> String {
-        "return DistanceInfo(false, vec3<f32>(0.0, 0.0, 0.0));".to_string()
+        // let offset = ray_position - self.position;
+        // let ray_direction = ray_direction.norm();
+        // let a = ray_direction.dot(ray_direction);
+        // let b = 2f64 * offset.dot(ray_direction);
+        // let c = offset.dot(offset) - self.radius * self.radius;
+        // let discriminant = b * b - 4f64 * a * c;
+        // if discriminant <= 1e-100 {
+        //     return None;
+        // }
+        // Some((-b - discriminant.sqrt()) / (2f64 * a))
+        "let offset: vec3<f32> = ray_position - current.position;
+let ray_dir: vec3<f32> = normalize(ray_direction);
+let a: f32 = dot(ray_dir, ray_dir);
+let b: f32 = 2.0 * dot(offset, ray_dir);
+let c = dot(offset, offset) - current.radius * current.radius;
+let discriminant: f32 = b * b - 4.0 * a * c;
+if (discriminant < 1e-100) {
+    return DistanceInfo(false, 0.0);
+} else {
+    return DistanceInfo(true, (-b - sqrt(discriminant)) / (2.0 * a));
+}".to_string()
     }
 
     fn normal_calculation_code(&self) -> String {

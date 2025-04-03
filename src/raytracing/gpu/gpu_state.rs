@@ -61,6 +61,7 @@ impl<'a> GpuState<'a> {
         self.object_buffers = vec![];
         self.cam_buffer.destroy();
         self.aspect_ratio_buffer.destroy();
+        self.objects_buffer.destroy();
     }
     pub fn get_surface<'b>(&'a self) -> &'b Surface where 'b: 'a {
         &self.surface
@@ -68,9 +69,13 @@ impl<'a> GpuState<'a> {
     pub fn get_device(&self) -> &Device {
         &self.device
     }
-    pub fn render(&self, aspect_ratio: f32, queue: &wgpu::Queue, view: &TextureView) -> CommandBuffer {
+    pub fn render(&self, aspect_ratio: f32, queue: &wgpu::Queue, view: &TextureView, objects: &Vec<Object>) -> CommandBuffer {
         // update aspect ratio buffer
         queue.write_buffer(&self.aspect_ratio_buffer, 0, &aspect_ratio.to_le_bytes());
+        queue.write_buffer(&self.objects_buffer, 0, &*objects.iter()
+            .enumerate()
+            .flat_map(|(i, object)| object.gpu_serialize(i as u32))
+            .collect::<Vec<_>>());
         let mut encoder = self.device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("Raytracing command encoder"),
         });
@@ -270,7 +275,7 @@ var<uniform> object_{i}: ObjectStruct{i};")
             "fn calculate_distance(ray_pos: vec3<f32>, ray_direction: vec3<f32>, object_id: u32) -> DistanceInfo {{\
                 switch (object_id) {{\
                     {cases}
-                    default: {{return DistanceInfo(false, vec3<f32>(0.0, 0.0, 0.0));}}
+                    default: {{return DistanceInfo(false, 0.0);}}
                 }}
             }}",
             cases = (0..structs_fields.len())
