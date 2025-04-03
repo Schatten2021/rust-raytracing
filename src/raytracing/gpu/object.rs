@@ -23,15 +23,6 @@ impl Object {
         let shape = Arc::new(Mutex::new(shape));
         Self { shape, material }
     }
-    pub(crate) fn normal_code(&self) -> String {
-        self.shape.lock().unwrap().normal_calculation_code()
-    }
-    pub(crate) fn distance(&self) -> String {
-        self.shape.lock().unwrap().distance_code()
-    }
-    pub(crate) fn struct_code(&self) -> Vec<(String, String)> {
-        self.shape.lock().unwrap().struct_fields()
-    }
     // pub(crate) fn to_gpu_object(&self, object_id: u64) -> GPUSendableObject {
     //     GPUSendableObject {
     //         base_color: self.material.base_color.into(),

@@ -124,6 +124,7 @@ impl CustomShape for Triangle {
         Some(distance)
     }
 }
+#[cfg(feature = "gpu")]
 impl GpuSerialize for Triangle {
     fn serialize(&self) -> Vec<u8> {
         self.vertices.iter()
@@ -131,6 +132,7 @@ impl GpuSerialize for Triangle {
             .collect()
     }
 }
+#[cfg(feature = "gpu")]
 impl GpuShape for Triangle {
     fn struct_fields(&self) -> Vec<(String, String)> {
         vec![("vertices".to_string(), "array<vec3<f32>, 3>".to_string())]

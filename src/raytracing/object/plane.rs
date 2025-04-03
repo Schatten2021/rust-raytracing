@@ -13,6 +13,7 @@ impl Plane {
         Self { position, normal }
     }
 }
+#[cfg(feature = "gpu")]
 impl CustomShape for Plane {
     fn distance(&self, ray_pos: Vector3, ray_dir: Vector3) -> Option<f64> {
         let offset = ray_pos - self.position;
@@ -31,6 +32,7 @@ impl CustomShape for Plane {
         self.normal
     }
 }
+#[cfg(feature = "gpu")]
 impl GpuSerialize for Plane {
     fn serialize(&self) -> Vec<u8> {
         self.position.serialize().into_iter()

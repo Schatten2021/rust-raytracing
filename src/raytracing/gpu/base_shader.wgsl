@@ -59,32 +59,13 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let ray_dir = inverse3x3(to_cam_space_mat) * cam_space_dir;
 
     let ray = Ray(camera.pos, ray_dir, vec3<f32>(1.0, 1.0, 1.0), vec3<f32>(0.0, 0.0, 0.0));
-
-    var colors: array<vec3<f32>, 10> = array(
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-        trace_ray(ray),
-    );
+    let ray_count: u32 = 256u;
     var color: vec3<f32> = vec3(0.0, 0.0, 0.0);
-    for (var i: u32 = 0u; i < 10u; i++) {
-        color += colors[i];
+    for (var i: u32 = 0u; i < ray_count; i++) {
+        color += trace_ray(ray);
     }
-    color /= 10.0;
+    color /= f32(ray_count);
 
-//    let color = vec4(camera.fov, aspect_ratio / 2, 0.0, 1.0);
-//    let object_length: u32 = arrayLength(&objects);
-//    let object_length_float: f32 = f32(object_length);
-//    color = vec4(objects[0].base_color, 0.0);
-//    color = vec4(camera.dir, 0.0);
-//    let rand: f32 = random_float();
-//    color = vec4(rand, rand, rand, 1.0);
     return vec4(color, 1.0);
 }
 struct DistanceInfo {

@@ -23,6 +23,7 @@ impl<T: From<f64>> Into<[T; 3]> for Vector3 {
         [T::from(self.x), T::from(self.y), T::from(self.z)]
     }
 }
+#[cfg(feature = "gpu")]
 impl GpuSerialize for Vector3 {
     fn serialize(&self) -> Vec<u8> {
         self.x.serialize()

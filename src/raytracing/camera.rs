@@ -65,6 +65,7 @@ impl Camera {
         self.to_world_space * vec
     }
 }
+#[cfg(feature = "gpu")]
 impl GpuSerialize for Camera {
     fn serialize(&self) -> Vec<u8> {
         self.position.serialize().into_iter()

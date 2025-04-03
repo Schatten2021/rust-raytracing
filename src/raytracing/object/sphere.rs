@@ -30,6 +30,7 @@ impl CustomShape for Sphere {
         (world_position - self.position).norm()
     }
 }
+#[cfg(feature = "gpu")]
 impl GpuSerialize for Sphere {
     fn serialize(&self) -> Vec<u8> {
         self.position.serialize().into_iter()
@@ -37,6 +38,7 @@ impl GpuSerialize for Sphere {
             .collect()
     }
 }
+#[cfg(feature = "gpu")]
 impl GpuShape for Sphere {
     fn struct_fields(&self) -> Vec<(String, String)> {
         vec![
