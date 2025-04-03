@@ -241,7 +241,7 @@ impl<'a> GpuState<'a> {
         let normal_functions = normal_functions.iter()
             .enumerate()
             .map(|(i, normal_function)| {
-                format!("fn normal_object_{i}(world_pos: vec3<f32>) -> vec3<f32> {{\
+                format!("fn normal_object_{i}(world_position: vec3<f32>) -> vec3<f32> {{\
                 let current = object_{i};\
                 {normal_function}\
                 }}")

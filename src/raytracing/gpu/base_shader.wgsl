@@ -1,3 +1,4 @@
+const PI = acos(0.0) * 2.0;
 struct Camera {
     pos: vec3<f32>,
     dir: vec3<f32>,
@@ -46,6 +47,7 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
 
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+    initRngSeed(input.uv);
     let angle = input.uv * vec2<f32>(camera.fov, camera.fov / aspect_ratio);
     let cam_space_dir: vec3<f32> = vec3<f32>(sin(angle), cos(angle.x) * cos(angle.y));
 
@@ -58,18 +60,125 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
 
     let ray = Ray(camera.pos, ray_dir, vec3<f32>(1.0, 1.0, 1.0), vec3<f32>(0.0, 0.0, 0.0));
 
-    var color = vec4(trace_ray(ray), 1.0);
+    var colors: array<vec3<f32>, 50> = array(
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+        trace_ray(ray),
+    );
+    var color: vec3<f32> = vec3(0.0, 0.0, 0.0);
+    for (var i: u32 = 0u; i < 50u; i++) {
+        color += colors[i];
+    }
+    color /= 50.0;
+
 //    let color = vec4(camera.fov, aspect_ratio / 2, 0.0, 1.0);
 //    let object_length: u32 = arrayLength(&objects);
 //    let object_length_float: f32 = f32(object_length);
 //    color = vec4(objects[0].base_color, 0.0);
 //    color = vec4(camera.dir, 0.0);
-    return color;
+//    let rand: f32 = random_float();
+//    color = vec4(rand, rand, rand, 1.0);
+    return vec4(color, 1.0);
 }
 struct DistanceInfo {
     did_hit: bool,
     distance: f32,
 }
+
+// rng
+var<private> rng_seed: u32 = 0u;
+fn initRngSeed(pixel: vec2<f32>) {
+    // Compute a seed from pixel coordinates and a frame constant using a simple hash.
+    // Given two floats in [0,1), scale them to the full 32-bit range,
+    // then mix their bits using a simple hash function.
+    // Scale the floats to 32-bit unsigned integer range.
+    // (We subtract a tiny epsilon to avoid exactly 1.0.)
+    let ai: u32 = u32(clamp(pixel.x + 0.5, 0.0, 0.999999) * 4294967296.0);
+    let bi: u32 = u32(clamp(pixel.y + 0.5, 0.0, 0.999999) * 4294967296.0);
+
+    // Combine the two values into a 64-bit value, then mix down to 32 bits.
+    // Since WGSL doesn’t have 64-bit integers yet, we can instead combine them via bitwise mixing.
+    // One simple approach is to use XOR and a multiplication with a large odd constant.
+    var h: u32 = ai ^ (bi * 0x85ebca6bu);
+    h = (h ^ (h >> 16u)) * 0x85ebca6bu;
+    rng_seed = jenkinsHash(u32(h ^ (h >> 13u)));
+}
+fn jenkinsHash(input: u32) -> u32 {
+  var x = input;
+  x += x << 10u;
+  x ^= x >> 6u;
+  x += x << 3u;
+  x ^= x >> 11u;
+  x += x << 15u;
+  return x;
+}
+fn random_int() -> u32 {
+    let newSeed = rng_seed * 747796405u + 2891336453u;
+    rng_seed = newSeed;
+    let word = ((newSeed >> ((newSeed >> 28u) + 4u)) ^ newSeed) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+fn random_float() -> f32 {
+    return f32(random_int()) / f32(0xffffffffu);
+}
+fn random_direction() -> vec3<f32> {
+    let z: f32 = random_float() * 2.0 - 1.0;
+    let theta = random_float() * 2.0 * PI;
+    let r = sqrt(1.0 - z * z);
+    return vec3<f32> (
+        r * cos(theta),
+        r * sin(theta),
+        z,
+    );
+}
+
 // actual raytracing beginning
 struct Ray {
     position: vec3<f32>,
@@ -79,7 +188,7 @@ struct Ray {
 }
 fn trace_ray(ray_: Ray) -> vec3<f32> {
     var ray = ray_;
-    for (var i: u32 = 0u; i < 10u; i++) {
+    for (var i: u32 = 0u; i < 2u; i++) {
         let hit_info = closest_object(ray);
         if (!hit_info.did_hit) {
             break;
@@ -89,6 +198,13 @@ fn trace_ray(ray_: Ray) -> vec3<f32> {
         ray.light_color *= hit_info.object.base_color;
         if (all(ray.light_color == vec3<f32>(0.0, 0.0, 0.0))) {
             break;
+        }
+        let normal = calculate_normal(ray.position, hit_info.object.object_id);
+        let new_random_dir = random_direction();
+        if (dot(normal, new_random_dir) < 0.0) {
+            ray.direction = -new_random_dir;
+        } else {
+            ray.direction = new_random_dir;
         }
     }
     return ray.actual_color;

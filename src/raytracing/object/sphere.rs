@@ -70,6 +70,6 @@ if (discriminant < 1e-100) {
     }
 
     fn normal_calculation_code(&self) -> String {
-        "return vec3<f32>(1.0, 0.0, 0.0);".to_string()
+        "return normalize(world_position - current.position);".to_string()
     }
 }
