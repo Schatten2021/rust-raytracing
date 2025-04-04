@@ -1,6 +1,8 @@
 use crate::math::Vector3;
 use crate::object::CustomShape;
+#[cfg(feature = "gpu")]
 use crate::raytracing::gpu::GpuSerialize;
+#[cfg(feature = "gpu")]
 use crate::raytracing::gpu::object::GpuShape;
 
 #[derive(Clone, Debug)]
@@ -13,7 +15,7 @@ impl Plane {
         Self { position, normal }
     }
 }
-#[cfg(feature = "gpu")]
+
 impl CustomShape for Plane {
     fn distance(&self, ray_pos: Vector3, ray_dir: Vector3) -> Option<f64> {
         let offset = ray_pos - self.position;
@@ -42,6 +44,7 @@ impl GpuSerialize for Plane {
             .collect::<Vec<u8>>()
     }
 }
+#[cfg(feature = "gpu")]
 impl GpuShape for Plane {
     fn struct_fields(&self) -> Vec<(String, String)> {
         vec![

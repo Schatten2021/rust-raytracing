@@ -12,6 +12,7 @@ pub struct GpuState<'a> {
     pub(crate) pipeline: RenderPipeline,
     pub(crate) targets: Vec<Option<ColorTargetState>>,
     pub(crate) objects_buffer: Buffer,
+    pub(crate) objects_buffer_contents: Vec<u8>,
     pub(crate) object_buffers: Vec<Buffer>,
     pub(crate) cam_buffer: Buffer,
     pub(crate) aspect_ratio_buffer: Buffer,
@@ -48,6 +49,7 @@ impl<'a> GpuState<'a> {
             cam_buffer,
             aspect_ratio_buffer,
             objects_buffer,
+            objects_buffer_contents: vec![],
             object_buffers: vec![],
             distance_functions: vec![],
             normal_functions: vec![],
@@ -69,13 +71,9 @@ impl<'a> GpuState<'a> {
     pub fn get_device(&self) -> &Device {
         &self.device
     }
-    pub fn render(&self, aspect_ratio: f32, queue: &wgpu::Queue, view: &TextureView, objects: &Vec<Object>) -> CommandBuffer {
+    pub fn render(&self, aspect_ratio: f32, queue: &wgpu::Queue, view: &TextureView) -> CommandBuffer {
         // update aspect ratio buffer
         queue.write_buffer(&self.aspect_ratio_buffer, 0, &aspect_ratio.to_le_bytes());
-        queue.write_buffer(&self.objects_buffer, 0, &*objects.iter()
-            .enumerate()
-            .flat_map(|(i, object)| object.gpu_serialize(i as u32))
-            .collect::<Vec<_>>());
         let mut encoder = self.device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("Raytracing command encoder"),
         });
@@ -102,11 +100,12 @@ impl<'a> GpuState<'a> {
         encoder.finish()
     }
     pub fn add_object(&mut self, object: Object) {
-        self.objects_buffer = self.device.create_buffer(&BufferDescriptor {
+        let new_dat = object.gpu_serialize(self.object_buffers.len() as u32);
+        self.objects_buffer_contents.extend(new_dat);
+        self.objects_buffer = self.device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Object information"),
-            size: self.objects_buffer.size() + size_of::<Object>() as wgpu::BufferAddress,
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-            mapped_at_creation: false,
+            contents: &*self.objects_buffer_contents,
         });
         let shape = object.shape.lock().unwrap();
         self.object_buffers.push(

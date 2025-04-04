@@ -1,6 +1,8 @@
 use crate::math::Vector3;
 use crate::object::CustomShape;
+#[cfg(feature = "gpu")]
 use crate::raytracing::gpu::GpuSerialize;
+#[cfg(feature = "gpu")]
 use crate::raytracing::gpu::object::GpuShape;
 
 #[derive(Clone, Debug)]

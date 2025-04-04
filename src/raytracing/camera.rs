@@ -1,4 +1,5 @@
 use crate::math::{Mat3x3, Vector3};
+#[cfg(feature = "gpu")]
 use crate::raytracing::gpu::GpuSerialize;
 
 #[derive(Debug, Clone)]

@@ -1,4 +1,5 @@
 use crate::math::Vector3;
+#[cfg(feature = "gpu")]
 use crate::raytracing::gpu::GpuSerialize;
 
 impl<A: Into<f64>, B: Into<f64>, C: Into<f64>> From<(A, B, C)> for Vector3 {

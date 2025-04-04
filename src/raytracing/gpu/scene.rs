@@ -28,6 +28,6 @@ impl<'a> Scene<'a> {
         self.state.add_object(object);
     }
     pub fn render(&self, view: &TextureView, aspect_ratio: f32, queue: &Queue) -> wgpu::CommandBuffer {
-        self.state.render(aspect_ratio, queue, view, &self.objects)
+        self.state.render(aspect_ratio, queue, view)//, &self.objects)
     }
 }
