@@ -1,27 +1,79 @@
 use std::borrow::Cow;
-use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, Buffer, BufferBinding, BufferBindingType, BufferDescriptor, BufferUsages, ColorTargetState, CommandEncoderDescriptor, Device, FragmentState, PipelineLayout, RenderPassDescriptor, RenderPipeline, ShaderStages, Surface, VertexState, TextureView, Operations, LoadOp, Color, StoreOp, CommandBuffer};
+use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, Buffer, BufferBinding, BufferBindingType, BufferDescriptor, BufferUsages, ColorTargetState, CommandEncoderDescriptor, Device, FragmentState, PipelineLayout, RenderPassDescriptor, RenderPipeline, ShaderStages, Surface, VertexState, TextureView, Operations, LoadOp, Color, StoreOp, CommandBuffer, Label};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use crate::Camera;
 use crate::raytracing::gpu::GpuSerialize;
 use crate::raytracing::gpu::object::Object;
 
 const BASE_SHADER: &str = include_str!("base_shader.wgsl");
+struct ChangeableBuffer<'a> {
+    device: Device,
+    label: Label<'a>,
+    buffer: Buffer,
+    data: Vec<u8>,
+    requires_update: bool,
+}
+impl<'a> ChangeableBuffer<'a> {
+    pub(crate) fn new(device: &Device, label: Label<'a>) -> Self {
+        Self {
+            device: device.clone(),
+            label: label.clone(),
+            buffer: device.create_buffer(&BufferDescriptor {
+                label,
+                size: 0,
+                usage: BufferUsages::UNIFORM | BufferUsages::STORAGE | BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            }),
+            data: vec![],
+            requires_update: false,
+        }
+    }
+    pub(crate) fn add_data(&mut self, data: impl Iterator<Item = u8>) {
+        self.data.extend(data);
+        self.requires_update = true;
+    }
+    pub(crate) fn get_updated_buffer(&mut self) -> &Buffer {
+        if self.requires_update {
+            self.buffer.destroy();
+            self.buffer = self.device.create_buffer_init(&BufferInitDescriptor {
+                label: self.label,
+                contents: &*self.data,
+                usage: BufferUsages::UNIFORM | BufferUsages::STORAGE | BufferUsages::COPY_DST,
+            });
+            self.requires_update = false;
+        }
+        &self.buffer
+    }
+    pub(crate) fn destroy(&self) -> () {
+        self.buffer.destroy();
+    }
+    pub(crate) fn set_data(&mut self, data: Vec<u8>) {
+        self.data = data;
+        self.requires_update = true;
+    }
+    pub(crate) fn insert_data(&mut self, data: Vec<u8>, start_index: usize) -> () {
+        if start_index + data.len() > self.data.len() {
+            self.data.resize(start_index + data.len(), 0);
+        }
+        self.data[start_index..start_index + data.len()] = *data;
+    }
+}
+
 pub struct GpuState<'a> {
-    pub(crate) surface: Surface<'a>,
-    pub(crate) device: Device,
-    pub(crate) pipeline: RenderPipeline,
-    pub(crate) targets: Vec<Option<ColorTargetState>>,
-    pub(crate) objects_buffer: Buffer,
-    pub(crate) objects_buffer_contents: Vec<u8>,
-    pub(crate) object_buffers: Vec<Buffer>,
-    pub(crate) cam_buffer: Buffer,
-    pub(crate) aspect_ratio_buffer: Buffer,
-    pub(crate) distance_functions: Vec<String>,
-    pub(crate) normal_functions: Vec<String>,
-    pub(crate) struct_fields: Vec<Vec<(String, String)>>,
+    device: Device,
+    pipeline: RenderPipeline,
+    targets: Vec<Option<ColorTargetState>>,
+    default_object_data: ChangeableBuffer<'a>,
+    object_buffers: Vec<Buffer>,
+    cam_buffer: Buffer,
+    aspect_ratio_buffer: Buffer,
+    distance_functions: Vec<String>,
+    normal_functions: Vec<String>,
+    struct_fields: Vec<Vec<(String, String)>>,
 }
 impl<'a> GpuState<'a> {
-    pub fn new(surface: Surface<'a>, device: Device, targets: Vec<Option<ColorTargetState>>, camera: &Camera) -> GpuState<'a> {
+    pub fn new(device: &Device, targets: Vec<Option<ColorTargetState>>, camera: &Camera) -> GpuState<'a> {
+        let device = Device::clone(device);
         let cam_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Raytracing camera buffer"),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
@@ -33,23 +85,16 @@ impl<'a> GpuState<'a> {
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
-        let objects_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("Object information"),
-            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-            size: 0,
-            mapped_at_creation: false,
-        });
         let pipeline = Self::create_pipeline(&device, &*targets, &vec![], &vec![], &vec![], &vec![]);
+        let default_object_data = ChangeableBuffer::new(&device, Some("raytracing object data"));
         // println!("gpu state initialized");
         Self {
-            surface,
             device,
             targets,
             pipeline,
             cam_buffer,
             aspect_ratio_buffer,
-            objects_buffer,
-            objects_buffer_contents: vec![],
+            default_object_data,
             object_buffers: vec![],
             distance_functions: vec![],
             normal_functions: vec![],
@@ -63,15 +108,12 @@ impl<'a> GpuState<'a> {
         self.object_buffers = vec![];
         self.cam_buffer.destroy();
         self.aspect_ratio_buffer.destroy();
-        self.objects_buffer.destroy();
-    }
-    pub fn get_surface<'b>(&'a self) -> &'b Surface where 'b: 'a {
-        &self.surface
+        self.default_object_data.destroy();
     }
     pub fn get_device(&self) -> &Device {
         &self.device
     }
-    pub fn render(&self, aspect_ratio: f32, queue: &wgpu::Queue, view: &TextureView) -> CommandBuffer {
+    pub fn render(&mut self, aspect_ratio: f32, queue: &wgpu::Queue, view: &TextureView) -> CommandBuffer {
         // update aspect ratio buffer
         queue.write_buffer(&self.aspect_ratio_buffer, 0, &aspect_ratio.to_le_bytes());
         let mut encoder = self.device.create_command_encoder(&CommandEncoderDescriptor {
@@ -100,13 +142,7 @@ impl<'a> GpuState<'a> {
         encoder.finish()
     }
     pub fn add_object(&mut self, object: Object) {
-        let new_dat = object.gpu_serialize(self.object_buffers.len() as u32);
-        self.objects_buffer_contents.extend(new_dat);
-        self.objects_buffer = self.device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Object information"),
-            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-            contents: &*self.objects_buffer_contents,
-        });
+        self.default_object_data.add_data(object.gpu_serialize(self.object_buffers.len() as u32).into_iter());
         let shape = object.shape.lock().unwrap();
         self.object_buffers.push(
             self.device.create_buffer_init(&BufferInitDescriptor {
@@ -323,7 +359,7 @@ var<uniform> object_{i}: ObjectStruct{i};")
         // println!("{}", shader);
         shader
     }
-    fn create_bind_group_for_builtins(&self) -> BindGroup {
+    fn create_bind_group_for_builtins(&mut self) -> BindGroup {
         self.device.create_bind_group(&BindGroupDescriptor {
             label: Some("raytracing builtin bind group"),
             layout: &Self::create_bind_group_layout_for_builtins(&self.device),
@@ -347,7 +383,7 @@ var<uniform> object_{i}: ObjectStruct{i};")
                 BindGroupEntry {
                     binding: 2,
                     resource: BindingResource::Buffer(BufferBinding {
-                        buffer: &self.objects_buffer,
+                        buffer: &self.default_object_data.get_updated_buffer(),
                         offset: 0,
                         size: None,
                     })
