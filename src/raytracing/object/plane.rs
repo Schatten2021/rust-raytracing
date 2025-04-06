@@ -77,4 +77,7 @@ impl GpuShape for Plane {
     fn normal_calculation_code(&self) -> String {
         "return current.normal;".to_string()
     }
+    fn object_type(&self) -> String {
+        format!("{}::plane", module_path!())
+    }
 }

@@ -201,4 +201,7 @@ impl GpuShape for Triangle {
     }
     return DistanceInfo(true, dst);".to_string()
     }
+    fn object_type(&self) -> String {
+        format!("{}::triangle", module_path!())
+    }
 }

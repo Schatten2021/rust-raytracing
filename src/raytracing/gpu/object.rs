@@ -31,11 +31,13 @@ impl Object {
     //         object_id,
     //     }
     // }
-    pub(crate) fn gpu_serialize(&self, object_id: u32) -> Vec<u8> {
+    pub(crate) fn gpu_serialize(&self, object_id: u32, object_index: u32) -> Vec<u8> {
         self.material.base_color.serialize().into_iter()
             .chain(self.material.roughness.serialize())
             .chain(self.material.emission_color.serialize())
             .chain(object_id.to_le_bytes())
+            .chain(object_index.to_le_bytes())
+            .chain([0;4 * 3]) // alignment
             .collect::<Vec<_>>()
     }
 }
@@ -51,37 +53,14 @@ pub trait GpuShape: GpuSerialize {
     /// The function should return a DistanceInfo object which is constructed via 1 bool and 1 f32.
     /// The boolean dictates, whether the object was actually hit or not and the f32 dictates the distance.
     /// If the Object isn't hit (boolean  is false) the distance is ignored.
-    ///
-    /// Example code (sphere):
-    /// ``` wgsl
-    /// // define the struct for code completion/etc.
-    /// struct Sphere {
-    ///     position: vec3<f32>,
-    ///     radius: f32,
-    /// }
-    /// // redefine the value for easier use (code completion/etc.)
-    /// Sphere self = Sphere(self.position, self.radius);
-    /// // define an inner function (again, easier use)
-    /// fn distance(self: Sphere, ray_position: vec3<f32>, ray_direction: vec3<f32>) -> DistanceInfo {
-    ///     ...
-    /// }
-    /// // call the function.
-    /// return distance(self, ray_position, ray_direction);
-    /// ```
     fn distance_code(&self) -> String;
     /// returns wgsl code for calculating the normal at a given point.
     ///
     /// The function takes one `vec3<f32>`: The position at which the normal is requested.
     /// The function should return one `vec<f32>`: The normal at the given point.
-    ///
-    /// ``` wgsl
-    /// fn normal(position: vec3<f32>) -> vec3<f32> {
-    ///     ...
-    /// }
-    /// return normal(position);
-    /// ```
     fn normal_calculation_code(&self) -> String;
     // fn object_type(&self) -> String;
+    fn object_type(&self) -> String;
 }
 /// represents the material of an [Object]
 #[derive(Clone, Debug)]

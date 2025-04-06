@@ -1,5 +1,8 @@
 pub trait GpuSerialize {
     fn serialize(&self) -> Vec<u8>;
+    fn serialized_size(&self) -> usize {
+        self.serialize().len()
+    }
 }
 
 impl GpuSerialize for f64 {

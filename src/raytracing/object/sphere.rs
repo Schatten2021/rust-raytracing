@@ -76,4 +76,7 @@ if (discriminant < 1e-100) {
     fn normal_calculation_code(&self) -> String {
         "return normalize(world_position - current.position);".to_string()
     }
+    fn object_type(&self) -> String {
+        format!("{}::sphere", module_path!())
+    }
 }

@@ -9,6 +9,7 @@ struct Object {
     roughness: f32, // placed here to make alignement easier
     emission_color: vec3<f32>,
     object_id: u32, // placed here for easier alignement
+    object_index: u32,
     //vec3<f32> requires a 16 bit alignement, that's why those above are where they are.
 }
 
@@ -59,7 +60,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let ray_dir = inverse3x3(to_cam_space_mat) * cam_space_dir;
 
     let ray = Ray(camera.pos, ray_dir, vec3<f32>(1.0, 1.0, 1.0), vec3<f32>(0.0, 0.0, 0.0));
-    let ray_count: u32 = 256u;
+    let ray_count: u32 = 50u;
     var color: vec3<f32> = vec3(0.0, 0.0, 0.0);
     for (var i: u32 = 0u; i < ray_count; i++) {
         color += trace_ray(ray);
@@ -140,7 +141,8 @@ fn trace_ray(ray_: Ray) -> vec3<f32> {
         if (all(ray.light_color == vec3<f32>(0.0, 0.0, 0.0))) {
             break;
         }
-        let normal = calculate_normal(ray.position, hit_info.object.object_id);
+        let object = hit_info.object;
+        let normal = calculate_normal(ray.position, object.object_id, object.object_index);
         let new_random_dir = random_direction();
         if (dot(normal, new_random_dir) < 0.0) {
             ray.direction = -new_random_dir;
@@ -155,12 +157,12 @@ struct RayHitInfo {
     object: Object,
     distance: f32,
 }
-const NULL_OBJECT: Object = Object(vec3<f32>(0.0, 0.0, 0.0), 0.0, vec3<f32>(0.0, 0.0, 0.0), 0);
+const NULL_OBJECT: Object = Object(vec3<f32>(0.0, 0.0, 0.0), 0.0, vec3<f32>(0.0, 0.0, 0.0), 0, 0);
 fn closest_object(ray: Ray) -> RayHitInfo {
     var res: RayHitInfo = RayHitInfo(false, NULL_OBJECT, -1.0);
     for (var i: u32 = 0u; i < arrayLength(&objects); i++) {
         let current = objects[i];
-        let distance_result = calculate_distance(ray.position, ray.direction, current.object_id);
+        let distance_result = calculate_distance(ray.position, ray.direction, current.object_id, current.object_index);
         if (!distance_result.did_hit) {
             continue;
         }
