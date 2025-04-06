@@ -119,7 +119,7 @@ impl Material  {
         Self::new(Vector3::zeros(), light_color, 1f64)
     }
     pub const fn mirror() -> Self {
-        Self::new(Vector3::ones(), Vector3::zeros(), 1f64)
+        Self::new(Vector3::ones(), Vector3::zeros(), 0f64)
     }
 }
 

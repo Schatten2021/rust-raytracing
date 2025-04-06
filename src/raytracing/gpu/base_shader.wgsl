@@ -65,7 +65,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let ray_dir = inverse3x3(to_cam_space_mat) * cam_space_dir;
 
     let ray = Ray(camera.pos, ray_dir, vec3<f32>(1.0, 1.0, 1.0), vec3<f32>(0.0, 0.0, 0.0));
-    let ray_count: u32 = 10u;
+    let ray_count: u32 = 30u;
     var color: vec3<f32> = vec3(0.0, 0.0, 0.0);
     for (var i: u32 = 0u; i < ray_count; i++) {
         color += trace_ray(ray);
@@ -140,22 +140,31 @@ fn trace_ray(ray_: Ray) -> vec3<f32> {
         if (!hit_info.did_hit) {
             break;
         }
-        ray.position += ray.direction * hit_info.distance * 0.9999;
+        ray.position += ray.direction * hit_info.distance;
         ray.actual_color += hit_info.object.emission_color * ray.light_color;
-        ray.light_color *= hit_info.object.base_color;
+        ray.light_color *= max(hit_info.object.base_color, vec3<f32>(0.0, 0.0, 0.0));
         if (all(ray.light_color == vec3<f32>(0.0, 0.0, 0.0))) {
             break;
         }
         let object = hit_info.object;
         let normal = calculate_normal(ray.position, object.object_id, object.object_index);
-        let new_random_dir = random_direction();
-        if (dot(normal, new_random_dir) < 0.0) {
-            ray.direction = -new_random_dir;
-        } else {
-            ray.direction = new_random_dir;
-        }
+        ray.direction = random_bounce(ray.direction, normal, object.roughness);
     }
     return ray.actual_color;
+}
+fn random_bounce(ray_dir: vec3<f32>, surface_normal: vec3<f32>, surface_roughness: f32) -> vec3<f32> {
+    let random_dir = random_direction();
+    let reflection_dir = ray_dir - surface_normal * 2 * dot(ray_dir, surface_normal);
+    let random_to_reflection = reflection_dir - random_dir;
+    let reflection_mult = 1.0 - surface_roughness;
+    var final_direction = random_dir + random_to_reflection * reflection_mult;
+
+    final_direction = normalize(final_direction);
+    if (dot(final_direction, surface_normal) < 0.0) {
+        return -final_direction;
+    } else {
+        return final_direction;
+    }
 }
 struct RayHitInfo {
     did_hit: bool,
