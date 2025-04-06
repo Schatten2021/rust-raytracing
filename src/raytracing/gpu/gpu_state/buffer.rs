@@ -28,6 +28,7 @@ pub(super) struct FrequentlyChangedBuffer<'a> {
 macro_rules! const_bitflags {
     ($ty:ty, $($flags:path)|*) => {<$ty>::from_bits($($flags.bits())|*).unwrap()};
 }
+
 impl<'a> FrequentlyChangedBuffer<'a> {
     const BUFFER_USAGES: wgpu::BufferUsages = const_bitflags!(wgpu::BufferUsages, wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC);
     pub fn new(device: &wgpu::Device, label: wgpu::Label<'a>) -> Self {

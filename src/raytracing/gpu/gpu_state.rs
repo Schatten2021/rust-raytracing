@@ -6,8 +6,6 @@ use crate::raytracing::gpu::GpuSerialize;
 use crate::Camera;
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::fmt::Display;
-use wgpu::util::DeviceExt;
 
 const BASE_SHADER: &str = include_str!("base_shader.wgsl");
 struct ShapeInfo<'a> {
@@ -18,17 +16,6 @@ struct ShapeInfo<'a> {
     struct_fields: Vec<(String, String)>,
     count: usize,
     shape_id: usize,
-}
-impl ShapeInfo<'_> {
-    pub fn build_struct(&self, struct_id: usize) -> String{
-        let fields = self.struct_fields.iter()
-            .map(|f| format!("{}: {},", f.0, f.1))
-            .collect::<Vec<_>>()
-            .join("\n");
-        format!("struct Shape{struct_id} {{
-    {fields}
-}}")
-    }
 }
 
 pub(super) struct State<'a> {
@@ -208,7 +195,7 @@ impl State<'_> {
     }
     fn create_shader(objects: &HashMap<String, ShapeInfo>) -> String {
         let (structs, uniforms, distance_functions, normal_functions, bounding_box_functions) = objects.values()
-            .map(|(info)| {
+            .map(|info| {
                 let i = info.shape_id;
                 (
                     format!("struct Shape{i} {{
