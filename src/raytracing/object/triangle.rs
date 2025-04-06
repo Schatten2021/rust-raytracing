@@ -151,9 +151,12 @@ impl GpuShape for Triangle {
     let pos = current.vertices[0];
     let r = current.vertices[1] - pos;
     let s = current.vertices[2] - pos;
-    let normal = cross(r, s);
+    var normal = cross(r, s);
     if (dot(normalize(ray_direction), normal) == 0.0) {
         return DistanceInfo(false, 0.0);
+    }
+    if (dot(normal, ray_direction) < 0.0) {
+        normal = -normal;
     }
     let dst = dot(normal, pos - ray_position) / dot(normalize(ray_direction), normal);
     if (dst < 0.0) {
@@ -203,5 +206,10 @@ impl GpuShape for Triangle {
     }
     fn object_type(&self) -> String {
         format!("{}::triangle", module_path!())
+    }
+    fn bounding_box_code(&self) -> String {
+        "let max_p = max(max(current.vertices[0], current.vertices[1]), current.vertices[2]);
+let min_p = min(min(current.vertices[0], current.vertices[1]), current.vertices[2]);
+return BoundingBox(true, min_p, max_p);".to_string()
     }
 }

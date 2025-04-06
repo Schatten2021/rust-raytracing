@@ -12,6 +12,11 @@ struct Object {
     object_index: u32,
     //vec3<f32> requires a 16 bit alignement, that's why those above are where they are.
 }
+struct BoundingBox {
+    has_box: bool,
+    min: vec3<f32>,
+    max: vec3<f32>,
+}
 
 @group(0)
 @binding(0)
@@ -60,7 +65,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let ray_dir = inverse3x3(to_cam_space_mat) * cam_space_dir;
 
     let ray = Ray(camera.pos, ray_dir, vec3<f32>(1.0, 1.0, 1.0), vec3<f32>(0.0, 0.0, 0.0));
-    let ray_count: u32 = 50u;
+    let ray_count: u32 = 10u;
     var color: vec3<f32> = vec3(0.0, 0.0, 0.0);
     for (var i: u32 = 0u; i < ray_count; i++) {
         color += trace_ray(ray);
@@ -162,6 +167,10 @@ fn closest_object(ray: Ray) -> RayHitInfo {
     var res: RayHitInfo = RayHitInfo(false, NULL_OBJECT, -1.0);
     for (var i: u32 = 0u; i < arrayLength(&objects); i++) {
         let current = objects[i];
+        let bounding_box = bounding_box(current.object_id, current.object_index);
+        if (!bounding_box_intersection(ray, bounding_box)) {
+            continue;
+        }
         let distance_result = calculate_distance(ray.position, ray.direction, current.object_id, current.object_index);
         if (!distance_result.did_hit) {
             continue;
@@ -175,6 +184,19 @@ fn closest_object(ray: Ray) -> RayHitInfo {
         }
     }
     return res;
+}
+fn bounding_box_intersection(ray: Ray, box: BoundingBox) -> bool {
+    if !box.has_box {
+        return true;
+    }
+    let inv_dir = 1.0 / ray.direction;
+    // Compute intersections with the slabs for each axis
+    let t0s = (box.min - ray.position) * inv_dir;
+    let t1s = (box.max - ray.position) * inv_dir;
+    // For each axis, determine the min and max intersection distances
+    let tmin = max(max(min(t0s.x, t1s.x), min(t0s.y, t1s.y)), min(t0s.z, t1s.z));
+    let tmax = min(min(max(t0s.x, t1s.x), max(t0s.y, t1s.y)), max(t0s.z, t1s.z));
+    return tmax >= max(tmin, 0.0);
 }
 
 // thx ChatGPT

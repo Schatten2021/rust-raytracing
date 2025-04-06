@@ -80,4 +80,7 @@ impl GpuShape for Plane {
     fn object_type(&self) -> String {
         format!("{}::plane", module_path!())
     }
+    fn bounding_box_code(&self) -> String {
+        "return BoundingBox(false, vec3<f32>(), vec3<f32>());".to_string()
+    }
 }

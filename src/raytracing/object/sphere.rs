@@ -79,4 +79,9 @@ if (discriminant < 1e-100) {
     fn object_type(&self) -> String {
         format!("{}::sphere", module_path!())
     }
+    fn bounding_box_code(&self) -> String {
+        "let min_x: vec3<f32> = current.position - current.radius;
+let max_x: vec3<f32> = current.position + current.radius;
+return BoundingBox(true, min_x, max_x);".to_string()
+    }
 }

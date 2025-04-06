@@ -59,8 +59,8 @@ pub trait GpuShape: GpuSerialize {
     /// The function takes one `vec3<f32>`: The position at which the normal is requested.
     /// The function should return one `vec<f32>`: The normal at the given point.
     fn normal_calculation_code(&self) -> String;
-    // fn object_type(&self) -> String;
     fn object_type(&self) -> String;
+    fn bounding_box_code(&self) -> String;
 }
 /// represents the material of an [Object]
 #[derive(Clone, Debug)]
