@@ -147,10 +147,11 @@ impl GpuShape for Triangle {
         return normalize(normal);".to_string()
     }
     fn distance_code(&self) -> String {
-        "
+        "let EPSILON =  1e-8;
     let pos = current.vertices[0];
     let r = current.vertices[1] - pos;
     let s = current.vertices[2] - pos;
+    let p = ray_position - pos;
     var normal = cross(r, s);
     if (dot(normalize(ray_direction), normal) == 0.0) {
         return DistanceInfo(false, 0.0);
@@ -158,51 +159,30 @@ impl GpuShape for Triangle {
     if (dot(normal, ray_direction) < 0.0) {
         normal = -normal;
     }
-    let dst = dot(normal, pos - ray_position) / dot(normalize(ray_direction), normal);
-    if (dst < 0.0) {
+
+    let pvec = cross(ray_direction, s);
+    let det = dot(r, pvec);
+    if (abs(det) < EPSILON) {
+        return DistanceInfo(false, 0.0);
+    }
+    let invDet = 1.0 / det;
+    let u = dot(p, pvec) * invDet;
+
+    if (u < 0.0 || u > 1.0) {
         return DistanceInfo(false, 0.0);
     }
 
-    let intersection_point = ray_position + ray_direction * dst;
-    let p = intersection_point - pos;
-    var lgs1 = vec3<f32>(r.x, s.x, p.x);
-    var lgs2 = vec3<f32>(r.y, s.y, p.y);
-    var lgs3 = vec3<f32>(r.z, s.z, p.z);
-
-    if (lgs1.x == 0.0) {
-        if (lgs2.x == 0.0) {
-            if (lgs3.x == 0.0) {
-                return DistanceInfo(false, 0.0);
-            }
-            let tmp = lgs3;
-            lgs3 = lgs1;
-            lgs1 = tmp;
-        } else {
-            let tmp = lgs2;
-            lgs2 = lgs1;
-            lgs1 = tmp;
-        }
-    }
-    lgs1 /= lgs1.x;
-    lgs2 -= lgs1 * (lgs2.x / lgs1.x);
-    lgs3 -= lgs1 * (lgs3.x / lgs1.x);
-    if (lgs2.y == 0.0) {
-        if (lgs3.y == 0.0) {
-            return DistanceInfo(false, 0.0);
-        }
-        let tmp = lgs2;
-        lgs2 = lgs3;
-        lgs3 = tmp;
-    }
-    lgs2 /= lgs2.y;
-    lgs1 -= lgs2 * (lgs1.y / lgs2.y);
-    lgs3 -= lgs2 * (lgs3.y / lgs2.y);
-    let a = lgs1.z;
-    let b = lgs2.z;
-    if (!(0.0 <= a && a <= 1.0 && 0.0 <= b && b <= 1.0 && (a+b) <= 1.0)) {
+    let qvec = cross(p, r);
+    let v = dot(ray_direction, qvec) * invDet;
+    if (v < 0.0 || (u + v) > 1.0) {
         return DistanceInfo(false, 0.0);
     }
-    return DistanceInfo(true, dst);".to_string()
+
+    let t = dot(s, qvec) * invDet;
+    if (t > EPSILON) {
+        return DistanceInfo(true, t);
+    }
+    return DistanceInfo(false, 0);".to_string()
     }
     fn object_type(&self) -> String {
         format!("{}::triangle", module_path!())
