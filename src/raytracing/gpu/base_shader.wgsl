@@ -17,6 +17,13 @@ struct BoundingBox {
     min: vec3<f32>,
     max: vec3<f32>,
 }
+struct Config {
+    rays_per_pixel: u32,
+    max_bounces: u32,
+    focal_length: f32,
+    focal_offset: f32,
+    non_focal_offset: f32,
+}
 
 @group(0)
 @binding(0)
@@ -25,9 +32,12 @@ var<uniform> camera: Camera;
 @group(0)
 @binding(1)
 var<uniform> aspect_ratio: f32;
-
 @group(0)
 @binding(2)
+var<uniform> config: Config;
+
+@group(0)
+@binding(3)
 var<storage, read> objects: array<Object>;
 
 struct VertexOutput {
@@ -65,12 +75,17 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let ray_dir = inverse3x3(to_cam_space_mat) * cam_space_dir;
 
     let ray = Ray(camera.pos, ray_dir, vec3<f32>(1.0, 1.0, 1.0), vec3<f32>(0.0, 0.0, 0.0));
-    let ray_count: u32 = 30u;
     var color: vec3<f32> = vec3(0.0, 0.0, 0.0);
-    for (var i: u32 = 0u; i < ray_count; i++) {
-        color += trace_ray(ray);
+    let target_point = ray.position + ray.direction * config.focal_length;
+    for (var i: u32 = 0u; i < config.rays_per_pixel; i++) {
+        var current_ray = ray;
+        let ray_target = target_point + random_direction() * config.focal_offset;
+        let ray_origin = ray.position + random_direction() * config.non_focal_offset;
+        current_ray.position = ray_origin;
+        current_ray.direction = normalize(ray_target - ray_origin);
+        color += trace_ray(current_ray);
     }
-    color /= f32(ray_count);
+    color /= f32(config.rays_per_pixel);
 
     return vec4(color, 1.0);
 }
@@ -135,7 +150,7 @@ struct Ray {
 }
 fn trace_ray(ray_: Ray) -> vec3<f32> {
     var ray = ray_;
-    for (var i: u32 = 0u; i < 10u; i++) {
+    for (var i: u32 = 0u; i < config.max_bounces; i++) {
         let hit_info = closest_object(ray);
         if (!hit_info.did_hit) {
             break;

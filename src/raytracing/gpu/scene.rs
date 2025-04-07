@@ -1,6 +1,6 @@
 use crate::raytracing::gpu::gpu_state::State;
 use crate::raytracing::gpu::object::Object;
-use crate::Camera;
+use crate::{Camera, Config};
 use wgpu::{ColorTargetState, Device, Queue, TextureView};
 
 pub struct Scene<'a> {
@@ -9,8 +9,8 @@ pub struct Scene<'a> {
     state: State<'a>
 }
 impl<'a> Scene<'a> {
-    pub fn new(camera: Camera, device: &Device, targets: Vec<Option<ColorTargetState>>) -> Self {
-        let state = State::new(&device, targets, &camera);
+    pub fn new(camera: Camera, device: &Device, targets: Vec<Option<ColorTargetState>>, config: Config) -> Self {
+        let state = State::new(&device, targets, &camera, config);
         Self {
             camera,
             objects: Vec::new(),

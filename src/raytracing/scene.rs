@@ -9,29 +9,16 @@ use image::{
     ImageBuffer,
     Rgb
 };
+#[cfg(feature = "gpu")]
+use crate::raytracing::gpu::GpuSerialize;
+
 #[derive(Clone, Debug)]
 pub struct Config {
-    // /// determines, at which distance a ray is seen as having hit an object
-    // pub raymarch_collision_threshold: f64,
-    // /// Determines, how much of the minimum distance is gone per step.
-    // /// This is done so that the ray won't go directly into the closest object.
-    // ///
-    // /// Should be made as close to 1 as possible but not 1.
-    // ///
-    // /// In case of visual artifacts, where a ray goes through an object, make this smaller.
-    // ///
-    // /// **DO NOT make this larger than 1.**
-    // pub raymarch_step_size_multiplier: f64,
     /// determines, how many rays are shot out per pixel. The more, the lower quality, the higher, the more costly the renderer will get.
     pub rays_per_pixel: usize,
     /// The maximum number of bounces a ray can make.
     /// The higher, the more indirect lighting will appear, the less, the faster the rendering will be.
     pub max_bounces: usize,
-    /// The maximum amount of steps a ray can make.
-    /// The higher, the more accurate the image, the lower, the faster the image renders.
-    pub max_steps: usize,
-    /// The distance at which point the renderer assumes that the ray won't hit anything.
-    pub max_distance: f64,
     /// The distance of the focal point.
     pub focal_length: f64,
     /// The maximum offset of each ray at the focal point. Can be used for a bit of anti-Aliasing at the focal point
@@ -49,23 +36,11 @@ macro_rules! reassign {
     }
 }
 impl Config {
-    // pub fn with_raymarch_collision_threshold(&self, raymarch_collision_threshold: f64) -> Self {
-    //     reassign!(self, raymarch_collision_threshold)
-    // }
-    // pub fn with_raymarch_step_size_multiplier(&self, raymarch_step_size_multiplier: f64) -> Self {
-    //     reassign!(self, raymarch_step_size_multiplier)
-    // }
     pub fn with_rays_per_pixel(&self, rays_per_pixel: usize) -> Self {
         reassign!(self, rays_per_pixel)
     }
     pub fn with_max_bounces(&self, max_bounces: usize) -> Self {
         reassign!(self, max_bounces)
-    }
-    pub fn with_max_steps(&self, max_steps: usize) -> Self {
-        reassign!(self, max_steps)
-    }
-    pub fn with_max_distance(&self, max_distance: f64) -> Self {
-        reassign!(self, max_distance)
     }
     pub fn with_focal_length(&self, focal_length: f64) -> Self {
         reassign!(self, focal_length)
@@ -80,18 +55,26 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            // raymarch_collision_threshold: 1e-6,
-            // raymarch_step_size_multiplier: 0.99,
             rays_per_pixel: 16,
             max_bounces: 10,
-            max_steps: 100,
-            max_distance: 1e12,
             focal_length: 10f64,
             focal_offset: 1e-4,
             non_focal_offset: 1e-1,
         }
     }
 }
+#[cfg(feature = "gpu")]
+impl GpuSerialize for Config {
+    fn serialize(&self) -> Vec<u8> {
+        (self.rays_per_pixel as u32).to_le_bytes().into_iter()
+            .chain((self.max_bounces as u32).to_le_bytes())
+            .chain((self.focal_length as f32).to_le_bytes())
+            .chain((self.focal_offset as f32).to_le_bytes())
+            .chain((self.non_focal_offset as f32).to_le_bytes())
+            .collect()
+    }
+}
+
 #[derive(Clone)]
 pub struct Scene {
     pub objects: Vec<Object>,

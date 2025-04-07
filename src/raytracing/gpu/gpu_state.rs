@@ -3,7 +3,7 @@ mod buffer;
 use crate::raytracing::gpu::gpu_state::buffer::FrequentlyChangedBuffer;
 use crate::raytracing::gpu::object::Object;
 use crate::raytracing::gpu::GpuSerialize;
-use crate::Camera;
+use crate::{Camera, Config};
 use std::borrow::Cow;
 use std::collections::HashMap;
 
@@ -26,13 +26,15 @@ pub(super) struct State<'a> {
     objects: HashMap<String, ShapeInfo<'a>>,
     cam_buffer: FrequentlyChangedBuffer<'a>,
     aspect_ratio_buffer: FrequentlyChangedBuffer<'a>,
+    config_buffer: FrequentlyChangedBuffer<'a>,
 }
 impl<'a> State<'a> {
-    pub fn new(device: &wgpu::Device, targets: Vec<Option<wgpu::ColorTargetState>>, camera: &Camera) -> Self {
+    pub fn new(device: &wgpu::Device, targets: Vec<Option<wgpu::ColorTargetState>>, camera: &Camera, config: Config) -> Self {
         let cam_buffer = FrequentlyChangedBuffer::new_init(device, Some("raytracing camera buffer"), camera.serialize());
         let aspect_ratio_buffer = FrequentlyChangedBuffer::new_init(device, Some("raytracing aspect ratio buffer"), 0f32.to_le_bytes().to_vec());
         let pipeline = Self::create_pipeline(device, &targets, &HashMap::new());
         let object_data = FrequentlyChangedBuffer::new(device, Some("raytracing object data"));
+        let config_buffer = FrequentlyChangedBuffer::new_init(device, Some("raytracing config buffer"), config.serialize());
         let device = device.clone();
         Self {
             device,
@@ -41,6 +43,7 @@ impl<'a> State<'a> {
             cam_buffer,
             aspect_ratio_buffer,
             object_data,
+            config_buffer,
             objects: HashMap::new(),
         }
     }
@@ -164,6 +167,15 @@ impl State<'_> {
                 count: None,
             }, wgpu::BindGroupLayoutEntry {
                 binding: 2,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }, wgpu::BindGroupLayoutEntry {
+                binding: 3,
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Storage { read_only: true },
@@ -318,7 +330,8 @@ impl State<'_> {
             entries: &[
                 entry!(0, cam_buffer),
                 entry!(1, aspect_ratio_buffer),
-                entry!(2, object_data),
+                entry!(2, config_buffer),
+                entry!(3, object_data),
             ]
         })
     }
